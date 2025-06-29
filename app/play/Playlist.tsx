@@ -17,7 +17,7 @@ export function PlaylistComponent({title, href, playlist, setCurrentPlaylist}: P
 
     return (
         <button onClick={populateTracks}>
-            <img className="w-14 h-14 object-fill" src={href} alt="coverImage" />
+            <img className="w-16 h-16 object-cover rounded-sm" src={href} alt="coverImage" />
         </button>
     );
 }

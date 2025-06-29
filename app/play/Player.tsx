@@ -5,14 +5,14 @@ import { PlaylistComponent } from "./Playlist";
 import { TrackComponent } from "./Track";
 import { Playlist } from "../types";
 
-interface HomeProps {
+interface PlayerProps {
     playlists: Array<Playlist>
 }
 
-export default function Home({playlists}: HomeProps) {
+export default function Player({playlists}: PlayerProps) {
     const [currentPlaylist, setCurrentPlaylist] = useState("");
 
-    let tracks: React.JSX.Element[] | null = null; 
+    let tracks: React.JSX.Element[] = []; 
 
     for (const playlist of playlists) {
         if (playlist.id == currentPlaylist) {
@@ -21,13 +21,13 @@ export default function Home({playlists}: HomeProps) {
     }
 
     return (
-        <div className="flex">
-            <div className="top-0 left-0 w-16 h-full m-3">
+        <div className="flex h-dvh overflow-hidden">
+            <div className="top-0 left-0 w-20 h-auto p-2 m-2 flex-none overflow-y-scroll bg-blue-500 rounded-sm">
                 {playlists.map((playlist, i) => (
                     <PlaylistComponent key={i} title={playlist.name} href={playlist.coverImage} playlist={playlist} setCurrentPlaylist={setCurrentPlaylist}/>
                 ))}
             </div>
-            <div className="flex-1">
+            <div className="flex-1 h-auto p-2 m-2 ml-0 bg-blue-500 overflow-y-scroll rounded-sm">
                 {tracks}
             </div>
         </div>

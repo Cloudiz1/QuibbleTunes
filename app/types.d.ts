@@ -2,7 +2,9 @@ export declare interface Track {
     id: string,
     name: string,
     artists: Array<string>,
-    duration: number
+    coverImage: string,
+    duration: number,
+    album: string
 }
 
 export declare interface Playlist {
