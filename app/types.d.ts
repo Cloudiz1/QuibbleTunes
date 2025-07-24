@@ -11,5 +11,8 @@ export declare interface Playlist {
     id: string,
     name: string,
     coverImage: string,
+    description: string,
     tracks: Array<Track>
 }
+
+Array<Playlist>

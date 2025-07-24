@@ -6,8 +6,6 @@ import Cookies from "js-cookie";
 
 export default function Home() {
   async function authRedirect() {
-    Cookies.get("refreshToken");
-
     if (!Cookies.get("refreshToken")) {
       const res = await fetch("/api/requestPerms");
       const body = await res.json();
@@ -18,6 +16,8 @@ export default function Home() {
 
     redirect("/play");
   }
+
+  // TODO add some sort of loading animation on button press
 
   return (
     <button onClick={authRedirect}>Try the app</button>

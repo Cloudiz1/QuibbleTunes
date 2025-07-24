@@ -1,101 +1,118 @@
-// import { cookies } from "next/headers";
-// import { Playlist } from "../types";
-// import { redirect } from "next/navigation";
+import { Playlist } from "../types";
+import { Track } from "../types";
 
-// export async function getPlaylists(): Promise<Array<Playlist>> {
-//     // const router = useRouter();
-//     const cookieStore = await cookies();
-//     let accessTokenCookie = cookieStore.get("accessToken");
-//     const expiresAtCookie = cookieStore.get("expiresAt"); 
-//     const spotifyRefreshTokenCookie = cookieStore.get("refreshToken");
+export declare interface getTracksResponse {
+    tracks: Array<Track>,
+    next: string | null
+}
 
-//     if (!accessTokenCookie || !expiresAtCookie || !spotifyRefreshTokenCookie || "error" in accessTokenCookie) redirect("/auth");
+export async function getNewToken(refreshToken: string): Promise<string> {
+    const url = "https://accounts.spotify.com/api/token";
+    if (!process.env.SPOTIFY_CLIENT_ID || !process.env.SPOTIFY_CLIENT_SECRET) throw new Error("Missing client info.");
 
-//     let accessToken: string = accessTokenCookie.value;
-//     const expiresAt: string = expiresAtCookie.value;
-//     const spotifyRefreshToken: string = expiresAtCookie.value;
+    const payload = {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Authorization': 'Basic ' + Buffer.from(process.env.SPOTIFY_CLIENT_ID + ':' + process.env.SPOTIFY_CLIENT_SECRET).toString('base64')
+        },
+        body: new URLSearchParams({
+            grant_type: 'refresh_token',
+            refresh_token: refreshToken,
+        }),
+    }
 
-//     if (Date.now() >= parseInt(expiresAt)) { // accessToken expires
-//         // accessToken = await refreshToken(spotifyRefreshToken);
-//         console.log(accessToken);
-//         if (!accessToken) redirect("/auth");
-//     }
+    const body = await fetch(url, payload);
+    const res = await body.json();
 
-//     let playlists: Array<Playlist> = [];
-//     const playlistRes = await fetch("https://api.spotify.com/v1/me/playlists", {
-//         headers: { Authorization: `Bearer ${accessToken}` },
-//     });
+    return res.access_token;
+}
 
-//     const spotifyPlaylists = await playlistRes.json();
-//     const trackResponses = [];
+export async function getPlaylists(accessToken: string): Promise<Array<Playlist>> { //TODO: move this to an api call so i can start loading a skeleton 
+    let playlists: Array<Playlist> = [];
+    let url: string = "https://api.spotify.com/v1/me/playlists";
 
-//     for (const spotifyPlaylist of spotifyPlaylists.items) {
-//         if (!spotifyPlaylist.images) {
-//             continue;
-//         }
-
-//         let playlist: Playlist = {
-//             coverImage: spotifyPlaylist.images[0].url, 
-//             id: spotifyPlaylist.id, 
-//             name: spotifyPlaylist.name, 
-//             tracks: []
-//         }
-//         playlists.push(playlist);
-
-//         trackResponses.push(
-//             fetch(`https://api.spotify.com/v1/playlists/${spotifyPlaylist.id}/tracks`, {
-//                 headers: { Authorization: `Bearer ${accessToken}` },
-//             })
-//             .then((res) => 
-//                 res.json()
-//                 .then((tracks) => {
-//                     for (const track of tracks.items) {
-//                         let artists: Array<string> = [];
-//                         for (const artist of track.track.artists) {
-//                             artists.push(artist.name);
-//                         }
-
-//                         playlist.tracks.push({
-//                             name: track.track.name, 
-//                             artists: artists, 
-//                             duration: track.track.duration_ms, 
-//                             id: track.track.id,
-//                             coverImage: track.track.album.images[0].url,
-//                             album: track.track.album.name
-//                         });
-//                     }
-//                 })
-//             )
-//         );
-//     }
-
-//     await Promise.all(trackResponses);
-
-//     return playlists;
-// }
-
-// // export async function refreshToken(refreshToken: string): Promise<string> {
-// //     const url = "https://accounts.spotify.com/api/token";
-
-// //     if (!process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID) throw new Error("Missing client id");
-
-// //     const payload = {
-// //       method: 'POST',
-// //       headers: {
-// //         'Content-Type': 'application/x-www-form-urlencoded'
-// //       },
-// //       body: new URLSearchParams({
-// //         grant_type: 'refresh_token',
-// //         refresh_token: refreshToken,
-// //         client_id: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID
-// //       }),
-// //     }
-// //     const body = await fetch(url, payload);
-// //     const res = await body.json();
+    while (url) {
+        const playlistRes = await fetch(url, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+        });
     
-// //     if ("error" in res) {
-// //         redirect("/auth");
-// //     }
+        const spotifyPlaylists = await playlistRes.json();
+        for (const spotifyPlaylist of spotifyPlaylists.items) {
+            if (!spotifyPlaylist.images) continue;
+    
+            let playlist: Playlist = {
+                coverImage: spotifyPlaylist.images[0].url, 
+                id: spotifyPlaylist.id, 
+                name: spotifyPlaylist.name, 
+                description: spotifyPlaylist.description,
+                tracks: []
+            }
+            
+            playlists.push(playlist);
+        }
 
-// //     return res.accessToken;
-// // }
+        url = spotifyPlaylists.next;
+    }
+    
+    return playlists;
+}
+
+export async function getTracks(accessToken: string, playlistID: string): Promise<getTracksResponse> {
+    return new Promise((resolve) => {
+        let returnedTracks: Array<Track> = [];
+        fetch(`https://api.spotify.com/v1/playlists/${playlistID}/tracks`, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+        })
+        .then((res) => {
+          return res.json();
+        })
+        .then((tracks) => {
+            for (const track of tracks.items) {
+                let artists: Array<string> = [];
+                for (const artist of track.track.artists) {
+                    artists.push(artist.name);
+                }
+
+                returnedTracks.push({
+                    name: track.track.name, 
+                    artists: artists, 
+                    duration: track.track.duration_ms, 
+                    id: track.track.id,
+                    coverImage: track.track.album.images[0].url,
+                    album: track.track.album.name
+                });
+              }
+
+            resolve({tracks: returnedTracks, next: tracks.next});
+        })
+    })
+}
+
+// async function getTracks( accessToken: string, playlistId: string) {
+//     trackResponses.push(
+//         fetch(`https://api.spotify.com/v1/playlists/${spotifyPlaylist.id}/tracks`, {
+//             headers: { Authorization: `Bearer ${accessToken}` },
+//         })
+//         .then((res) => 
+//             res.json()
+//             .then((tracks) => {
+//                 for (const track of tracks.items) {
+//                     let artists: Array<string> = [];
+//                     for (const artist of track.track.artists) {
+//                         artists.push(artist.name);
+//                     }
+
+//                     playlist.tracks.push({
+//                         name: track.track.name, 
+//                         artists: artists, 
+//                         duration: track.track.duration_ms, 
+//                         id: track.track.id,
+//                         coverImage: track.track.album.images[0].url,
+//                         album: track.track.album.name
+//                     });
+//                 }
+//             })
+//         )
+//     );
+// }

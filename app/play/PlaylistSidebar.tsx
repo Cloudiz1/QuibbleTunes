@@ -7,12 +7,15 @@ interface PlaylistButtonProps {
     title: string,
     href: string,
     playlist: Playlist
-    setCurrentPlaylist: Dispatch<SetStateAction<string>>
+    setCurrentPlaylist: Dispatch<SetStateAction<Playlist | null>>
 }
 
-export function PlaylistComponent({title, href, playlist, setCurrentPlaylist}: PlaylistButtonProps) {
+// TODO: title is for hover effect
+export function PlaylistSidebar({title, href, playlist, setCurrentPlaylist}: PlaylistButtonProps) {
     function populateTracks() {
-        setCurrentPlaylist(playlist.id);
+
+        // TODO: populate tracks here
+        setCurrentPlaylist(playlist);
     }
 
     return (

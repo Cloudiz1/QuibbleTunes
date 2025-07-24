@@ -1,1 +1,4 @@
 at some point instead of throwing errors in `callback` and `play` redirect to an error page
+
+1. button press
+2. 
