@@ -13,8 +13,6 @@ interface PlaylistButtonProps {
 // TODO: title is for hover effect
 export function PlaylistSidebar({title, href, playlist, setCurrentPlaylist}: PlaylistButtonProps) {
     function populateTracks() {
-
-        // TODO: populate tracks here
         setCurrentPlaylist(playlist);
     }
 

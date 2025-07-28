@@ -12,7 +12,5 @@ export declare interface Playlist {
     name: string,
     coverImage: string,
     description: string,
-    tracks: Array<Track>
+    tracks: Array<Track>,
 }
-
-Array<Playlist>
