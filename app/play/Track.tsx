@@ -1,8 +1,7 @@
 import { Track } from "../types"
-
 interface TrackProps {
-    track: Track
-    index: number
+    track: Track | null
+    index: number 
 }
 
 export function TrackComponent({ track, index }: TrackProps) {
@@ -12,18 +11,39 @@ export function TrackComponent({ track, index }: TrackProps) {
         return minutes + ":" + (seconds < 10 ? '0' : '') + seconds;
     }
 
-    return <>
-        <div className="w-full h-17 flex items-center -mt-1.5 mb-1.5 overflow-hidden">
-            <p className="w-10 flex-none text-right mr-3">{index}</p>
-            <img className="w-14 h-14 flex-none object-fill rounded-sm" src={track.coverImage} />
+    if (track) {
+        return <>
+            <div className="w-full h-17 flex items-center -mt-1.5 mb-1.5 overflow-hidden">
+                <p className="w-11 flex-none text-right mr-2">{index}</p>
+                <img className="w-14 h-14 flex-none object-fill rounded-sm" src={track.coverImage} />
 
-            <div className="flex flex-col flex-1 pl-2 pr-8 min-w-0">
-                <p className="truncate text-lg -mb-1">{track.name}</p>
-                <p className="truncate text-sm text-white/90">{track.artists.join(", ")}</p>
+                <div className="flex flex-col flex-1 pl-2 pr-8 min-w-0">
+                    <p className="truncate text-lg -mb-1">{track.name}</p>
+                    <p className="truncate text-sm text-white/90">{track.artists.join(", ")}</p>
+                </div>
+
+                <p className="flex-1 truncate text-white">{track.album}</p>
+                <p className="w-12 flex-none text-right mr-6">{msToTime(track.duration)}</p>
             </div>
+        </>
+    } else {
+        return <>
+            <div className="w-full h-17 flex items-center -mt-1.5 mb-1.5 overflow-hidden">
+                <p className="w-11 flex-none text-right mr-2">{index}</p>
+                <div className="w-14 h-14 flex-none object-fill rounded-sm bg-purple-500"></div>
 
-            <p className="flex-1 truncate text-white">{track.album}</p>
-            <p className="w-12 flex-none text-right mr-6">{msToTime(track.duration)}</p>
-        </div>
-    </>
+                <div className="flex flex-col flex-1 pl-2 pr-8">
+                    <p className="mb-1 w-4/5 rounded-sm bg-purple-500">&nbsp;</p>
+                    <p className="text-xs w-3/5 rounded-sm bg-purple-500">&nbsp;</p>
+                </div>
+
+                <div className="flex-1">
+                    <p className="rounded-sm bg-purple-500 w-4/5">&nbsp;</p>
+                </div>
+                <div className="w-12 flex-none">
+                    <p className="rounded-sm w-3/5 bg-purple-500">&nbsp;</p>
+                </div>
+            </div>
+        </>
+    }
 }

@@ -5,7 +5,6 @@ export async function getPlaylists(accessToken: string): Promise<Array<Playlist>
     let playlists: Array<Playlist> = [];
     let url: string = "https://api.spotify.com/v1/me/playlists";
 
-    let index: number = 0;
     while (url) {
         const playlistRes = await fetch(url, {
             headers: { Authorization: `Bearer ${accessToken}` },
@@ -20,10 +19,9 @@ export async function getPlaylists(accessToken: string): Promise<Array<Playlist>
                 id: spotifyPlaylist.id, 
                 name: spotifyPlaylist.name, 
                 description: spotifyPlaylist.description,
-                tracks: [],
+                length: spotifyPlaylist.tracks.total
             }
-            
-            index++;
+
             playlists.push(playlist);
         }
 

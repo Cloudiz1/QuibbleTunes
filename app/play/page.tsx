@@ -2,65 +2,30 @@
 
 import { useState, useEffect } from "react";
 import { PlaylistSidebar } from "./PlaylistSidebar";
-import { PlaylistHeader } from "./PlaylistHeader";
-import { TrackComponent } from "./Track";
+import { PlaylistView } from "./PlaylistView"
+import { PlaylistViewPlaceholder } from "./PlaylistViewPlaceholder";
 import { Playlist } from "../types";
 import Cookies from "js-cookie";
 
-async function getPlaylists(refreshToken: string) {
-    const res = await fetch("/api/getPlaylists", {
-        method: "POST",
-        body: JSON.stringify({
-            refreshToken: refreshToken
-        })
-    });
-
-    return await res.json();
-}
-
 export default function Player() {
-    let playlistsBuffer: Array<Playlist> = [];
     let [playlists, setPlaylists] = useState<Array<Playlist>>([]);
     let [currentPlaylist, setCurrentPlaylist] = useState<Playlist| null>(null);
     
     useEffect(() => {
-        const getData = async () => {
-            const refreshToken = Cookies.get("refreshToken");
-    
-            playlistsBuffer = await getPlaylists(refreshToken!);
-            setPlaylists(playlistsBuffer);
-
-            const stream = await fetch("/api/streamTracks", {
-                method: "POST",
-                body: JSON.stringify({
-                    refreshToken: refreshToken,
-                    playlists: playlistsBuffer
-                })
-            });
-
-            const reader = stream.body!.getReader();
-            const decoder = new TextDecoder();
-            while (true) {
-                const { done, value } = await reader!.read()!;
-                if (done) break;
-                const data = await JSON.parse(decoder.decode(value, { stream: true }));
-
-                playlistsBuffer[data.index].tracks.push(...data.tracks);
-                setPlaylists(playlistsBuffer);
-                console.log(playlistsBuffer)
-            }
-        }
-
-        getData();
+        const refreshToken = Cookies.get("refreshToken");
+        fetch("/api/getPlaylists", {
+            method: "POST",
+            body: JSON.stringify({
+                refreshToken: refreshToken
+            })
+        })
+        .then((res) => { return res.json() })
+        .then((playlists) => { setPlaylists(playlists) });
     }, []);
-    
-    let tracks: React.JSX.Element[] = []; 
-    let PlaylistHeaderDisplay: React.JSX.Element = <></>;
-    if (playlists) {
-        if (currentPlaylist) {
-            tracks = currentPlaylist.tracks.map((track, i) => <TrackComponent key={i} index={i + 1} track={track}/>)
-            PlaylistHeaderDisplay = <PlaylistHeader title={currentPlaylist.name} coverImage={currentPlaylist.coverImage} description={currentPlaylist.description}/>
-        }
+
+    let mainView: React.JSX.Element = <PlaylistViewPlaceholder />;
+    if (currentPlaylist) {
+        mainView = <PlaylistView currentPlaylist={currentPlaylist}/>
     }
 
     return (
@@ -70,9 +35,8 @@ export default function Player() {
                     <PlaylistSidebar key={i} title={playlist.name} href={playlist.coverImage} playlist={playlist} setCurrentPlaylist={setCurrentPlaylist}/>
                 ))}
             </div>
-            <div className="flex-7 h-auto m-2 ml-0 bg-blue-500 overflow-y-scroll rounded-sm no-scrollbar"> {/* playlist */}
-                {PlaylistHeaderDisplay}
-                {tracks}
+            <div className="flex-7 h-auto m-2 ml-0 bg-blue-500 rounded-sm"> {/* playlist */}
+                {mainView}
             </div>
             <div className="flex-3 h-auto m-2 ml-0 bg-blue-500 rounded-sm"> {/* right side player */}
                 
