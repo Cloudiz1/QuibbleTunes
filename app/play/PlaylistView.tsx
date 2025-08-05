@@ -1,136 +1,89 @@
-"use client"
 import { Playlist, Track } from "../types"
 import { PlaylistHeader } from "./PlaylistHeader";
 import { TrackComponent } from "./Track";
+import { getAccessToken, getTracks } from "../lib/spotify";
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import Cookies from "js-cookie";
 
 interface PlaylistViewProps {
-    currentPlaylist: Playlist 
+    currentPlaylist: Playlist,
+    trackHeight: number
 }
 
-let allTracks: Array<Track | null> = [];
-
 const refreshToken = Cookies.get("refreshToken");
-const spotifyLimit = 100;
-
 const buffer = 5;
-const numVisible = 10;
-const numRendered = 2 * buffer + numVisible;
+const numTracks = 10 + buffer * 2;
 
-export function PlaylistView({ currentPlaylist }: PlaylistViewProps) {
-    const mainView = useRef(null);
-    const measureRef = useRef(null);
-    const displayedRange = useRef([0, numRendered]);
+export function PlaylistView({ currentPlaylist, trackHeight }: PlaylistViewProps) {
+    const allTracks = useRef<Array<Track | null>>([]);
+    const throttle = useRef<NodeJS.Timeout | null>(null);
+    const mainView = useRef<HTMLDivElement | null>(null);
+    const [scrollVal, setScrollVal] = useState(0);
+    const [displayedTracks, setDisplayedTracks] = useState<Array<Track | null>>([]);
+    
+    const index = Math.max(0, Math.floor(scrollVal / trackHeight) - buffer);
 
-    const [displayedTracks, setDisplayedTracks] = useState<Array<Track | null>>(allTracks);
-    const [trackHeight, setTrackHeight] = useState<number | null>(null);
-    const [scrollTop, setScrollTop] = useState(0);
-
-    const startIndex = Math.max(0, Math.floor(scrollTop / trackHeight) - buffer);
-    const endIndex = Math.min(currentPlaylist.length, startIndex + numRendered);
-
-    const handleScroll = () => {
-        setScrollTop(mainView.current.scrollTop);
-    };
+    function updateDisplayedTracks() {
+        setDisplayedTracks(allTracks.current.slice(index, index + numTracks));
+    }
 
     async function updateTracks() {
-        let firstEmptyIndex: number | null = null;
-        for (let i = startIndex; i < endIndex; i++) {
-            if (!allTracks[i]) {
-                firstEmptyIndex = i;
+        let offset: number | null = null;
+        for (let i = index; i < Math.min(index + numTracks, currentPlaylist.length); i++) {
+            if (!allTracks.current[i]) {
+                offset = i;
                 break;
             }
         }
 
-        if (firstEmptyIndex == null) return;
-        
-        const res = await fetch("/api/getTracks", {
-            method: "POST",
-            body: JSON.stringify({
-                refreshToken: refreshToken,
-                playlistID: currentPlaylist.id,
-                offset: firstEmptyIndex,
-                limit: spotifyLimit
-            })
+        if (offset === null) return;    
+
+        const accessToken = await getAccessToken(refreshToken!);
+        const res = await getTracks(accessToken, currentPlaylist.id, offset, numTracks);
+        res.tracks.forEach((track: Track, i: number) => {
+            allTracks.current[i + res.index] = track;
         });
-
-        const body = await res.json();
-
-        body.tracks.forEach((track: Track, i: number) => {
-            if (!allTracks[i + body.index]) {
-                allTracks[i  + body.index] = track;
-            }
-        })
-
-        setDisplayedTracks(allTracks.slice(startIndex, startIndex + numRendered));
     }
 
-    // debounce on api calls
-    useEffect(() => {
-        const id = setTimeout(() => {
-            let [lastStartIndex, lastEndIndex] = displayedRange.current;
-            if (startIndex < lastStartIndex || endIndex > lastEndIndex) {
-                updateTracks();
-                displayedRange.current = [startIndex, endIndex];
-            }
-        }, 50);
-
-        
-        return () => clearTimeout(id);
-    }, [scrollTop]);
-    
-    // updates which tracks are displayed
-    useEffect(() => {
-        setDisplayedTracks(allTracks.slice(startIndex, startIndex + numRendered));
-    }, [startIndex])
-
-    // measures the height of a track to do calculations with
     useLayoutEffect(() => {
-        if (measureRef.current && trackHeight === null) {
-            const height = measureRef.current.offsetHeight;
-            if (height && height > 0) {
-                setTrackHeight(height);
-            }
+        if (throttle.current) {
+            clearTimeout(throttle.current);
+            throttle.current = null;
         }
-    }, [trackHeight]);
 
-    // resets scroll to top on playlist change and gets first playlists
-    useLayoutEffect(() => {
-        allTracks = new Array(currentPlaylist.length);
-        allTracks.fill(null)
-        setDisplayedTracks(allTracks.slice(0, numRendered));
+        allTracks.current = (new Array(currentPlaylist.length)).fill(null);
+        updateDisplayedTracks()
         updateTracks()
-        if (mainView.current) {
-            mainView.current.scrollTop = 0;
-        }
-    }, [currentPlaylist]); 
-    
-    if (trackHeight === null) { 
-        return (
-            <div ref={measureRef}>
-                <TrackComponent track={null} index={0} />
-            </div>
-        );
-    }
 
+        if (mainView.current) mainView.current.scrollTop = 0;
+    }, [currentPlaylist])
+
+    useEffect(() => { // throttle scrolling
+        if (throttle.current) return;
+        throttle.current = setTimeout(() => {
+            updateTracks();
+            throttle.current = null;
+        }, 100);
+    }, [scrollVal]);
+
+    useEffect(() => {
+        updateDisplayedTracks();
+    }, [index])
+        
     const tracks = displayedTracks.map((track: Track | null, i: number) => {
-        const top = (i + startIndex) * trackHeight;
+        const top = (i + index) * trackHeight;
         return <div key={i} className="absolute left-0 w-full" style={{ top: `${top}px`, height: `${trackHeight}px` }}>
-            <TrackComponent track={track} index={i + startIndex + 1}/>
+            <TrackComponent track={track} index={i + index + 1}/>
         </div>
     })
 
     return (
-        <div ref={mainView} onScroll={handleScroll} className="overflow-y-scroll h-full">
-            <PlaylistHeader
-                title={currentPlaylist.name}
-                description={currentPlaylist.description}
-                coverImage={currentPlaylist.coverImage}
-            />
-            <div className="relative w-full" style={{ height: `${currentPlaylist.length * trackHeight}px` }}>
+        // @ts-expect-error
+        <div ref={mainView} onScroll={() => setScrollVal(mainView.current.scrollTop)} className="overflow-y-scroll h-full">
+            <PlaylistHeader title={currentPlaylist.name} description={currentPlaylist.description} coverImage={currentPlaylist.coverImage}/>
+            <div className="relative w-full overflow-y-hidden" style={{ height: `${currentPlaylist.length * trackHeight}px` }}>
                 {tracks}
             </div>
         </div>
-    );
+    )
 }
